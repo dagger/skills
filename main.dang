@@ -1,0 +1,66 @@
+"""
+Install and update the official Dagger agent skill in existing skill directories.
+"""
+type DaggerSkill {
+  """
+  Git repository containing released skills.
+  """
+  new(repository: GitRepository = null) {
+    self.repository = repository ?? git("https://github.com/dagger/skill")
+    self
+  }
+
+  let repository: GitRepository!
+
+  let releasedContent: Directory! {
+    let release = repository.latest
+    if (release.ref.hasPrefix("refs/tags/") == false) {
+      raise "No stable skill release is available. Publish a stable version tag before generating."
+    }
+    release.tree.directory("content")
+  }
+
+  """
+  Existing skill directories at the workspace root. Symbolic links are skipped.
+  """
+  pub targets(ws: Workspace!): [String!]! {
+    let source = ws.directory("/")
+    [".agents", ".claude", ".cursor", ".gemini", ".github", ".opencode"]
+      .filter { agent =>
+        source.exists(agent, expectedType: ExistsType.DIRECTORY_TYPE, doNotFollowSymlinks: true)
+      }
+      .map { agent => agent + "/skills" }
+      .filter { target =>
+        source.exists(target, expectedType: ExistsType.DIRECTORY_TYPE, doNotFollowSymlinks: true)
+      }
+  }
+
+  """
+  Install the latest released Dagger skill. dagger.lock pins the release until
+  dagger lock update. Review and apply the result with dagger generate.
+  """
+  pub generate(ws: Workspace!): Changeset! @generate {
+    let paths = targets(ws)
+    let before = ws.directory("/")
+    let after = paths.reduce(before) { output, target =>
+      let destination = target + "/dagger"
+      let marker = destination + "/.dagger-managed"
+      if (before.exists(destination, doNotFollowSymlinks: true)) {
+        if (before.exists(destination, expectedType: ExistsType.DIRECTORY_TYPE, doNotFollowSymlinks: true) == false) {
+          raise "Cannot install the Dagger skill at " + destination + ": the path is not a directory."
+        }
+        if (before.exists(marker, expectedType: ExistsType.REGULAR_TYPE, doNotFollowSymlinks: true) == false) {
+          raise "Existing skill at " + destination + " is not managed by this module. Move it before generating."
+        }
+        if (before.file(marker).contents != "dagger.io/skill\n") {
+          raise "Unknown skill owner at " + destination + ". Move it before generating."
+        }
+      }
+      output
+        .withoutDirectory(destination)
+        .withDirectory(destination, releasedContent)
+        .withNewFile(marker, "dagger.io/skill\n")
+    }
+    after.changes(before)
+  }
+}

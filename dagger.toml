@@ -1,0 +1,12 @@
+# Dagger workspace configuration
+# Install modules with: dagger module install <module>
+# Example:
+#   dagger module install dagger.io/linux/wolfi
+
+[modules]
+
+[modules.dagger-skill]
+source = "."
+
+[modules.skill-tests]
+source = "tests"

@@ -1,11 +1,11 @@
-# Dagger skills
+# Dagger skill
 
-Official agent skills for Dagger.
+The official agent skill for Dagger.
 
 Install the module in a project with an existing skill directory:
 
 ```sh
-dagger module install github.com/dagger/skills/dagger
+dagger module install dagger.io/skill
 dagger generate
 ```
 
@@ -26,6 +26,11 @@ dagger lock update
 dagger generate
 ```
 
-Skill content lives in `dagger/content`. Publish stable semantic version tags
+Skill content lives in `content`. Publish stable semantic version tags
 such as `v0.1.0` to release updates. Module and skill content can update separately:
 the installed module stays pinned while its content lookup follows the lockfile.
+
+Run the module checks with `dagger check`. Run `python3 tests/lock-update.py`
+to test pinned generation, conflict handling, and release updates. The update
+command is tested against a public repository. The generation test uses a
+local Git service with two releases and checks both release pins.
